@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balloon Shooter Challenge</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Login Screen -->
+        <div id="login-screen" class="screen">
+            <h1>Balloon Shooter</h1>
+            <div class="form-group">
+                <input type="text" id="username" placeholder="Enter Nickname" maxlength="15">
+                <button id="start-btn">Start Game</button>
+            </div>
+            <div id="how-to-play">
+                <h3>How to play:</h3>
+                <p>🎈 Shoot balloons for points</p>
+                <p>🦅 Don't shoot birds! (-Points)</p>
+                <p>⏱️ Beat the timer</p>
+            </div>
+            
+        </div>
+
+        <!-- Game UI -->
+        <div id="game-ui" class="screen hidden">
+            <div class="hud">
+                <div class="stat">Score: <span id="score">0 / 50</span></div>
+                <div class="stat">Level: <span id="level">1</span></div>
+                <div class="stat">Time: <span id="timer">30</span></div>
+            </div>
+            
+            <!-- Ammo Display (Bottom Right) -->
+            <div id="ammo-display">
+                <span id="bullet-count">50</span> | <span id="shell-count">5</span>
+            </div>
+
+            <canvas id="game-canvas"></canvas>
+        </div>
+
+        <!-- Game Over / Level Complete Screen -->
+        <div id="message-screen" class="screen hidden">
+            <h2 id="message-title">Game Over</h2>
+            <p id="message-text">Score achieved: 100</p>
+            <button id="next-level-btn" class="hidden">Next Level</button>
+            <button id="restart-btn">Try Again</button>
+            <button id="exit-btn" class="hidden">Exit to Menu</button>
+        </div>
+
+        <!-- Leaderboard Overlay -->
+        <div id="leaderboard-container">
+            <h3>Top Players</h3>
+            <ul id="leaderboard-list">
+                <!-- Items populated via JS -->
+            </ul>
+            <div id="online-count">Online: 0</div>
+        </div>
+    </div>
+
+    <!-- Socket.io Client Library -->
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Main Game Script (Type Module allows 'import' syntax like C# 'using') -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

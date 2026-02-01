@@ -1,0 +1,175 @@
+:root {
+    --primary-color: #3498db;
+    --danger-color: #e74c3c;
+    --success-color: #2ecc71;
+    --text-color: #2c3e50;
+    --bg-color: #ecf0f1;
+}
+
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Familiar for Windows users */
+    overflow: hidden;
+    background-color: var(--bg-color);
+    user-select: none; /* Prevent text selection during clicking */
+}
+
+#app {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.9);
+    z-index: 10;
+}
+
+/* Margin for buttons in screens */
+.screen button {
+    margin: 10px;
+    min-width: 150px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Canvas fills the screen behind UI */
+canvas {
+    display: block;
+    cursor: crosshair;
+    transition: background 1s ease;
+}
+
+canvas.level-1 { background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%); } /* Day */
+canvas.level-2 { background: linear-gradient(to bottom, #FF7F50 0%, #FFD700 100%); } /* Sunset */
+canvas.level-3 { background: linear-gradient(to bottom, #2c3e50 0%, #3498db 100%); } /* Night */
+canvas.level-4 { background: linear-gradient(to bottom, #1a2a6c 0%, #b21f1f 100%, #fdbb2d 100%); } /* Dusk */
+canvas.level-5 { background: linear-gradient(to bottom, #000000 0%, #434343 100%); } /* Space */
+
+/* HUD (Heads Up Display) */
+.hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    background: rgba(0,0,0,0.1);
+    box-sizing: border-box;
+    pointer-events: none; /* Let clicks pass through to canvas */
+}
+
+#ammo-display {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    font-size: 3rem;
+    font-weight: bold;
+    color: white;
+    opacity: 0.5;
+    pointer-events: none;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    font-family: 'Consolas', 'Courier New', monospace; /* Monospace for numbers */
+}
+
+/* Leaderboard */
+#leaderboard-container {
+    position: absolute;
+    top: 60px;
+    right: 20px;
+    width: 200px;
+    /* Default game state: translucent */
+    background: rgba(255, 255, 255, 0.4); 
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: opacity 0.5s, background-color 0.5s;
+    pointer-events: none; /* Let clicks pass */
+}
+
+/* Solid state for initial screen */
+#leaderboard-container.solid-mode {
+    background: rgba(255, 255, 255, 1.0);
+    top: 50%;
+    border: 2px solid #ccc;
+    transform: translateY(-50%);
+    z-index: 20; /* Above login screen */
+    pointer-events: auto;
+}
+
+/* Machine Gun Cursor */
+canvas.machine-gun-active {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="none" stroke="red" stroke-width="2"/><line x1="16" y1="4" x2="16" y2="28" stroke="red" stroke-width="2"/><line x1="4" y1="16" x2="28" y2="16" stroke="red" stroke-width="2"/></svg>') 16 16, crosshair !important;
+}
+
+#initial-leaderboard {
+    margin-top: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 8px;
+    width: 300px;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+}
+#initial-leaderboard ul {
+    list-style: none;
+    padding: 0;
+}
+#initial-leaderboard li {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #eee;
+    padding: 5px 0;
+}
+
+#leaderboard-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#leaderboard-list li {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #ccc;
+    padding: 4px 0;
+}
+
+/* Controls */
+button {
+    padding: 10px 20px;
+    font-size: 1.2rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+button:active {
+    transform: scale(0.95);
+}
+
+input {
+    padding: 10px;
+    font-size: 1.2rem;
+    margin-right: 10px;
+}

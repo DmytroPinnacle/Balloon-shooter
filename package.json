@@ -1,0 +1,17 @@
+{
+  "name": "balloon-shooter",
+  "version": "1.0.0",
+  "description": "Multiplayer Balloon Shooter Game",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.4"
+  }
+}
