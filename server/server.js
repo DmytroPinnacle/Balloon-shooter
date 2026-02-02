@@ -3,9 +3,14 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+require('dotenv').config({ path: path.join(__dirname, '../.env') }); // Load explicitly from root
 
 // Constants
-const DB_URI = "mongodb+srv://razor23donetsk_db_user:5I3zV62YCRoyfOvx@balloon-shooter-cluster.ihyklum.mongodb.net/?retryWrites=true&w=majority&appName=Balloon-shooter-cluster";
+const DB_PASSWORD = process.env.DB_PASSWORD;
+const DB_USER = "razor23donetsk_db_user";
+const DB_CLUSTER = "balloon-shooter-cluster.ihyklum.mongodb.net";
+const DB_URI = process.env.MONGODB_URI || `mongodb+srv://${DB_USER}:${DB_PASSWORD}@${DB_CLUSTER}/?retryWrites=true&w=majority&appName=Balloon-shooter-cluster`;
+
 const DB_NAME = "balloon-shooter";
 const COLLECTION_NAME = "leaderboard";
 
