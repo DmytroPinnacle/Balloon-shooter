@@ -56,6 +56,11 @@ canvas.level-2 { background: linear-gradient(to bottom, #FF7F50 0%, #FFD700 100%
 canvas.level-3 { background: linear-gradient(to bottom, #2c3e50 0%, #3498db 100%); } /* Night */
 canvas.level-4 { background: linear-gradient(to bottom, #1a2a6c 0%, #b21f1f 100%, #fdbb2d 100%); } /* Dusk */
 canvas.level-5 { background: linear-gradient(to bottom, #000000 0%, #434343 100%); } /* Space */
+canvas.level-6 { background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%); } /* Day */
+canvas.level-7 { background: linear-gradient(to bottom, #FF7F50 0%, #FFD700 100%); } /* Sunset */
+canvas.level-8 { background: linear-gradient(to bottom, #2c3e50 0%, #3498db 100%); } /* Night */
+canvas.level-9 { background: linear-gradient(to bottom, #1a2a6c 0%, #b21f1f 100%, #fdbb2d 100%); } /* Dusk */
+canvas.level-10 { background: linear-gradient(to bottom, #000000 0%, #434343 100%); } /* Space */
 
 /* HUD (Heads Up Display) */
 .hud {

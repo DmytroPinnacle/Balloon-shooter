@@ -1036,24 +1036,293 @@ export class Godzilla extends GameObject {
 
         ctx.restore();
         
-        // Draw Lifebar separately to avoid flip issues (Use absolute coords relative to x,y)
+        // Add Missing Lifebar
+        // Ensure absolute coordinates to avoid flipping
         const barW = this.width;
         const barH = 10;
         const barY = this.y - this.height - 20;
         const barX = this.x - barW/2;
-        
+         
         ctx.save();
-        ctx.globalAlpha = 0.6; // Translucent Requirement
-        
-        // BG
+        ctx.globalAlpha = 0.8;
         ctx.fillStyle = 'black';
         ctx.fillRect(barX, barY, barW, barH);
         
-        // FG
         const pct = Math.max(0, this.hp / this.maxHp);
         ctx.fillStyle = pct > 0.5 ? 'lime' : (pct > 0.25 ? 'orange' : 'red');
         ctx.fillRect(barX + 1, barY + 1, (barW - 2) * pct, barH - 2);
+        ctx.restore();
+    }
+}
+
+export class Hydra extends GameObject {
+    constructor(canvasWidth, canvasHeight) {
+        const sizeType = Math.floor(Math.random() * 3) + 1;
+        let scaleRef = 0.35;
+        let hp = 15;
+        let pKill = 40;
         
+        if (sizeType === 2) { scaleRef = 0.45; hp = 25; pKill = 70; }
+        if (sizeType === 3) { scaleRef = 0.55; hp = 35; pKill = 100; }
+        
+        const h = canvasHeight * scaleRef;
+        const w = h * 0.8; 
+        
+        const startLeft = Math.random() > 0.5;
+        const x = startLeft ? -w : canvasWidth + w;
+        const y = canvasHeight;
+        const speed = 50 - (sizeType * 5);
+
+        super(x, y, w/2, speed);
+        
+        this.canvasWidth = canvasWidth;
+        this.width = w;
+        this.height = h;
+        this.hp = hp;
+        this.maxHp = hp;
+        this.killPoints = pKill;
+        this.direction = startLeft ? 1 : -1;
+        
+        this.headSway = [0,0,0];
+        this.time = 0;
+    }
+
+    update(deltaTime) {
+        this.time += deltaTime / 1000;
+        this.x += this.speed * this.direction * (deltaTime / 1000);
+        for(let i=0; i<3; i++) {
+            this.headSway[i] = Math.sin(this.time * (2 + i) + i);
+        }
+        if ((this.direction === 1 && this.x > this.canvasWidth + this.width) ||
+            (this.direction === -1 && this.x < -this.width)) {
+            this.markedForDeletion = true;
+        }
+    }
+    
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y); 
+        ctx.scale(this.direction, 1);
+        
+        // Body (Massive reptilian base)
+        ctx.fillStyle = '#2E8B57'; // SeaGreen
+        ctx.beginPath();
+        ctx.moveTo(-this.width*0.3, 0);
+        ctx.quadraticCurveTo(0, -this.height*0.4, this.width*0.3, 0);
+        ctx.fill();
+        
+        // Scales/Texture on body
+        ctx.fillStyle = '#006400';
+        for(let i=0; i<5; i++) {
+            ctx.beginPath();
+            ctx.arc((Math.random()-0.5)*this.width*0.4, -this.height*0.1 - Math.random()*this.height*0.1, 4, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        // 3 Heads - Realistic Serpent Necks
+        const neckBases = [-this.width*0.15, 0, this.width*0.15];
+        const headColors = ['#2E8B57', '#3CB371', '#228B22'];
+
+        for(let i=0; i<3; i++) {
+             const sway = this.headSway[i] * 15;
+             const bx = neckBases[i];
+             
+             // Draw Neck (Tapered)
+             ctx.fillStyle = headColors[i];
+             // Control points for S-curve
+             const cp1x = bx + sway*1.5;
+             const cp1y = -this.height*0.5;
+             const cp2x = bx - sway;
+             const cp2y = -this.height*0.7;
+             const headX = bx + sway*2;
+             const headY = -this.height*0.9;
+             
+             // Neck thickness
+             ctx.strokeStyle = headColors[i];
+             ctx.lineWidth = 20;
+             ctx.lineCap = 'round';
+             ctx.lineJoin = 'round';
+             
+             ctx.beginPath();
+             ctx.moveTo(bx, -this.height*0.2);
+             ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, headX, headY);
+             ctx.stroke();
+             
+             // Head
+             ctx.save();
+             ctx.translate(headX, headY);
+             ctx.rotate(sway * 0.02); 
+             
+             // Jaw/Head shape
+             ctx.fillStyle = '#006400';
+             ctx.beginPath();
+             ctx.ellipse(0, 0, 25, 15, 0, 0, Math.PI*2);
+             ctx.fill();
+             
+             // Snout
+             ctx.beginPath();
+             ctx.moveTo(10, -5);
+             ctx.lineTo(35, 5);
+             ctx.lineTo(15, 10);
+             ctx.fill();
+             
+             // Eye
+             ctx.fillStyle = 'yellow';
+             ctx.beginPath();
+             ctx.arc(5, -5, 4, 0, Math.PI*2);
+             ctx.fill();
+             // Pupil
+             ctx.fillStyle = 'red';
+             ctx.fillRect(5, -7, 1, 4);
+             
+             // Tongue
+             if (Math.random() < 0.1) {
+                 ctx.strokeStyle = 'red';
+                 ctx.lineWidth = 2;
+                 ctx.beginPath();
+                 ctx.moveTo(35, 5);
+                 ctx.lineTo(45, 10);
+                 ctx.stroke();
+             }
+
+             ctx.restore();
+        }
+        ctx.restore();
+        
+        // Lifebar
+        const barW = this.width;
+        const barH = 10;
+        const barY = this.y - this.height - 20;
+        const barX = this.x - barW/2;
+        ctx.save();
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = 'black';
+        ctx.fillRect(barX, barY, barW, barH);
+        const pct = Math.max(0, this.hp / this.maxHp);
+        ctx.fillStyle = 'lime';
+        ctx.fillRect(barX + 1, barY + 1, (barW - 2) * pct, barH - 2);
+        ctx.restore();
+    }
+}
+
+export class Pterodactyl extends GameObject {
+    constructor(canvasWidth, canvasHeight) {
+        const sizeType = Math.floor(Math.random() * 3) + 1;
+        let hp = 5;
+        let pKill = 30;
+        if (sizeType === 2) { hp = 10; pKill = 50; }
+        if (sizeType === 3) { hp = 15; pKill = 80; }
+
+        const h = canvasHeight * 0.15; // Slightly smaller base
+        const w = h * 2.5; 
+
+        const y = Math.random() * (canvasHeight * 0.4) + 50;
+        const startLeft = Math.random() > 0.5;
+        const x = startLeft ? -w : canvasWidth + w;
+        const speed = 150 + (Math.random() * 50);
+
+        super(x, y, w/2, speed);
+        
+        this.canvasWidth = canvasWidth;
+        this.width = w;
+        this.height = h;
+        this.hp = hp;
+        this.maxHp = hp;
+        this.killPoints = pKill;
+        this.direction = startLeft ? 1 : -1;
+        this.flap = 0;
+    }
+
+    update(deltaTime) {
+        this.x += this.speed * this.direction * (deltaTime / 1000);
+        this.flap += deltaTime / 150; // Slower flap
+        this.y += Math.sin(this.flap) * 2.0;
+
+        if ((this.direction === 1 && this.x > this.canvasWidth + this.width) ||
+            (this.direction === -1 && this.x < -this.width)) {
+            this.markedForDeletion = true;
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.scale(this.direction, 1);
+        
+        const wingY = Math.sin(this.flap) * 30;
+        const bodyColor = '#CD5C5C'; // Indian Red
+        const wingColor = '#8B0000'; // Dark Red
+        
+        // Body (Torso)
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.ellipse(0, 5, 15, 8, 0, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Head / Neck
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(25, -15); // Neck up
+        ctx.lineTo(35, -20); // Head back
+        ctx.lineTo(55, -5); // Beak tip (long)
+        ctx.lineTo(25, -5); // Jaw
+        ctx.fill();
+        
+        // Crest
+        ctx.beginPath();
+        ctx.moveTo(35, -20);
+        ctx.lineTo(20, -35); // Long crest back
+        ctx.lineTo(25, -25);
+        ctx.fill();
+        
+        // Eye
+        ctx.fillStyle = 'yellow';
+        ctx.beginPath();
+        ctx.arc(30, -15, 3, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Wings (Bat-like)
+        ctx.fillStyle = wingColor;
+        
+        // Right Wing (Visual Back)
+        ctx.beginPath();
+        ctx.moveTo(5, 0);
+        ctx.lineTo(-20, -40 + wingY); // Elbow
+        ctx.lineTo(-70, -20 + wingY); // Tip
+        ctx.quadraticCurveTo(-40, 0 + wingY, 5, 5); // Membrane
+        ctx.fill();
+
+        // Left Wing
+        ctx.fillStyle = '#A52A2A'; 
+        ctx.beginPath();
+        ctx.moveTo(5, 0);
+        ctx.lineTo(-10, -50 + wingY); 
+        ctx.lineTo(-60, -30 + wingY); 
+        ctx.quadraticCurveTo(-30, -5 + wingY, 5, 5); 
+        ctx.fill();
+
+        // Legs
+        ctx.strokeStyle = bodyColor;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-5, 10);
+        ctx.lineTo(-10, 20);
+        ctx.stroke();
+        
+        ctx.restore();
+        
+        // Health bar
+        const barW = 60;
+        const barH = 6;
+        const barY = this.y - 40;
+        const barX = this.x - barW/2;
+        ctx.save();
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = 'black';
+        ctx.fillRect(barX, barY, barW, barH);
+        const pct = Math.max(0, this.hp / this.maxHp);
+        ctx.fillStyle = 'purple';
+        ctx.fillRect(barX + 1, barY + 1, (barW - 2) * pct, barH - 2);
         ctx.restore();
     }
 }

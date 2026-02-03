@@ -64,23 +64,38 @@ app.get('/api/leaderboard', async (req, res) => {
 
 // POST Score
 app.post('/api/score', async (req, res) => {
-    const { name, score } = req.body;
+    const { name, score, sessionId } = req.body;
 
     if (!name || score === undefined) {
         return res.status(400).json({ error: "Missing name or score" });
     }
 
     if (!dbCollection) {
-        console.log(`[Mock Save] Player: ${name}, Score: ${score}`);
+        console.log(`[Mock Save] Player: ${name}, Score: ${score}, Session: ${sessionId}`);
         return res.status(200).json({ status: "saved (mock)" });
     }
 
     try {
-        await dbCollection.insertOne({
-            name: String(name).substring(0, 20), // Truncate name
-            score: Number(score),
-            date: new Date()
-        });
+        if (sessionId) {
+            // Upsert based on sessionId to prevent duplicate entries for same game
+            await dbCollection.updateOne(
+                { sessionId: sessionId },
+                { 
+                    $set: { 
+                        name: String(name).substring(0, 20), 
+                        score: Number(score),
+                        date: new Date()
+                    }
+                },
+                { upsert: true }
+            );
+        } else {
+            await dbCollection.insertOne({
+                name: String(name).substring(0, 20),
+                score: Number(score),
+                date: new Date()
+            });
+        }
         res.status(200).json({ status: "success" });
     } catch (err) {
         console.error("Score Save Error:", err);

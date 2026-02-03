@@ -7,6 +7,7 @@ const gameUI = document.getElementById('game-ui');
 const messageScreen = document.getElementById('message-screen');
 
 let currentPlayerName = "";
+let currentPlayerSessionId = "";
 let game = null;
 let latestLeaderboard = [];
 
@@ -32,11 +33,12 @@ async function fetchLeaderboard() {
 }
 
 async function submitScore(name, score) {
+    if (!currentPlayerSessionId) return; // Should not happen if game started correctly
     try {
         await fetch('/api/score', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, score })
+            body: JSON.stringify({ name, score, sessionId: currentPlayerSessionId })
         });
         // Refresh leaderboard after submission
         fetchLeaderboard();
@@ -129,7 +131,8 @@ document.getElementById('start-btn').addEventListener('click', () => {
     }
     
     currentPlayerName = nameInput.value;
-    // No socket join needed
+    // Generate new Session ID for this run
+    currentPlayerSessionId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(); 
     
     loginScreen.classList.add('hidden');
     gameUI.classList.remove('hidden');
@@ -145,7 +148,9 @@ function startGame(level) {
         game = new Game(canvas, onUIUpdate, onLevelComplete, onGameOver);
     }
     
-    canvas.className = `level-${level}`;
+    // Cycle backgrounds 1-5
+    const bgLevel = ((level - 1) % 5) + 1;
+    canvas.className = `level-${bgLevel}`;
     game.startLevel(level);
 }
 
@@ -157,6 +162,59 @@ const getMousePos = (e) => {
         y: e.clientY - rect.top
     };
 };
+
+// Touch Support (Tablet/Mobile Fix)
+canvas.style.touchAction = 'none'; // Prevent browser defaults (zoom/scroll)
+
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (!game) return;
+    
+    // Two-finger tap = Shotgun (Secondary Fire)
+    if (e.touches.length === 2 && game.shells > 0) {
+         const rect = canvas.getBoundingClientRect();
+         // Average position of two fingers
+         const t1 = e.touches[0];
+         const t2 = e.touches[1];
+         const x = ((t1.clientX + t2.clientX) / 2) - rect.left;
+         const y = ((t1.clientY + t2.clientY) / 2) - rect.top;
+         
+         game.handleRightClick(x, y);
+         return;
+    }
+    
+    // Single touch = Shoot / Machine Gun Start
+    if (e.touches.length === 1) {
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        game.setMouseState(true, x, y);
+        game.handleClick(x, y);
+    }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!game) return;
+    if (e.touches.length > 0) {
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        game.setMouseState(true, x, y); // For Machine Gun tracking
+    }
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    if (!game) return;
+    if (e.touches.length === 0) {
+        game.setMouseState(false, 0, 0);
+    }
+}, { passive: false });
 
 canvas.addEventListener('mousedown', (e) => {
     if (!game) return;

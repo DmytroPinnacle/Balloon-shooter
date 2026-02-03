@@ -1,4 +1,4 @@
-import { Balloon, Bird, FloatingText, Dragon, GoldenBalloon, GoldenClock, Mouse, Hedgehog, Gopher, AmmoDrop, BulletTrace, Godzilla, BirthdayCap, Bomb, MagazineDrop, ShotgunDrop } from './entities.js';
+import { Balloon, Bird, FloatingText, Dragon, GoldenBalloon, GoldenClock, Mouse, Hedgehog, Gopher, AmmoDrop, BulletTrace, Godzilla, BirthdayCap, Bomb, MagazineDrop, ShotgunDrop, Hydra, Pterodactyl } from './entities.js';
 
 export class Game {
     constructor(canvas, onUIUpdate, onLevelComplete, onGameOver) {
@@ -69,6 +69,21 @@ export class Game {
         this.stopMusic();
     }
 
+    getLevelConfig(level) {
+        if (level <= 5) return this.levelConfig[level];
+        
+        // Dynamic scaling beyond level 5
+        const base = this.levelConfig[5];
+        const extra = level - 5;
+        
+        return {
+            minPoints: Math.floor(base.minPoints * Math.pow(1.2, extra)), // Grows exponentially 20%
+            duration: base.duration,
+            spawnRate: Math.max(300, base.spawnRate - (extra * 50)), // Caps at 300ms
+            speedMult: base.speedMult + (extra * 0.2) // Linearly faster
+        };
+    }
+
     startLevel(level) {
         if (level > this.level) {
              this.scoreAtLevelStart = this.score;
@@ -81,12 +96,12 @@ export class Game {
         this.bullets = 50; 
         this.shells = 5; 
         
-        this.itemsSpawnedThisLevel = { clock: 0, ammo: 0, godzilla: 0, party: 0 };
+        this.itemsSpawnedThisLevel = { clock: 0, ammo: 0, godzilla: 0, party: 0, hydra: 0, pterodactyl: 0 };
         this.goldenBalloonSpawnedThisLevel = false;
         this.machineGunActive = false;
         this.isPartyMode = false;
 
-        const config = this.levelConfig[level] || this.levelConfig[5];
+        const config = this.getLevelConfig(level);
         this.timeLeft = config.duration;
         this.entities = [];
         this.particles = [];
@@ -150,7 +165,7 @@ export class Game {
 
         // Spawning Logic
         this.entitySpawnTimer += deltaTime;
-        const currentConfig = this.levelConfig[this.level] || this.levelConfig[5];
+        const currentConfig = this.getLevelConfig(this.level);
         
         // Party Mode spawns much faster (Full Screen of Balloons)
         // 40ms interval = ~25 balloons per second
@@ -173,16 +188,10 @@ export class Game {
                 }
                 
                 // Stomp/Trample Logic
-                // Check against existing animals
-                // Optimization: Only check if Godzilla is on ground (y > height - 150 approx)? 
-                // Currently Godzilla walks on ground.
                 this.entities.forEach(other => {
                     if (!other.markedForDeletion && (other instanceof Mouse || other instanceof Hedgehog || other instanceof Gopher)) {
-                        // Simple hit box for Godzilla's feet
                         const dx = Math.abs(e.x - other.x);
                         const dy = Math.abs(e.y - other.y);
-                        // Godzilla is big (w=120, h=120). Feet are at bottom.
-                        // Animal is small.
                         if (dx < 50 && dy < 60) {
                             other.markedForDeletion = true;
                             // Penalize Score
@@ -190,6 +199,41 @@ export class Game {
                             this.score = Math.max(0, this.score - penalty);
                             this.particles.push(new FloatingText(other.x, other.y, `-${penalty}`, "red"));
                             this.playSqueak();
+                        }
+                    }
+                });
+            }
+
+            // Hydra Logic
+            if (e instanceof Hydra) {
+                // Eats ground animals
+                this.entities.forEach(other => {
+                    if (!other.markedForDeletion && (other instanceof Mouse || other instanceof Hedgehog || other instanceof Gopher)) {
+                        const dx = Math.abs(e.x - other.x);
+                        const dy = Math.abs(e.y - other.y);
+                        if (dx < 60 && dy < 60) {
+                            other.markedForDeletion = true;
+                            const penalty = Math.floor(Math.random() * 3) + 1;
+                            this.score = Math.max(0, this.score - penalty);
+                            this.particles.push(new FloatingText(other.x, other.y, `-${penalty}`, "red"));
+                            this.playSqueak();
+                        }
+                    }
+                });
+            }
+
+            // Pterodactyl Logic
+            if (e instanceof Pterodactyl) {
+                // Eats Birds
+                this.entities.forEach(other => {
+                    if (!other.markedForDeletion && other instanceof Bird) {
+                        const dist = Math.hypot(e.x - other.x, e.y - other.y);
+                        if (dist < 60) {
+                            other.markedForDeletion = true;
+                            const penalty = 5; 
+                            this.score = Math.max(0, this.score - penalty);
+                            this.particles.push(new FloatingText(other.x, other.y, `-${penalty}`, "red"));
+                            this.playSqueak(); // reuse squeak or add screech
                         }
                     }
                 });
@@ -266,11 +310,28 @@ export class Game {
         
         // Godzilla (Max 2 per level, Max 1 on screen)
         const godzillaOnScreen = this.entities.some(e => e instanceof Godzilla);
-        // Requirement: 10% more often. Original 0.008 -> 0.010 (approx 25% increase actually, but good for "more often")
-        if (!godzillaOnScreen && this.level >= 4 && this.itemsSpawnedThisLevel.godzilla < 2 && Math.random() < 0.010) {
+        // Requirement: More frequent (increased to 0.025)
+        if (!godzillaOnScreen && this.level >= 4 && this.itemsSpawnedThisLevel.godzilla < 2 && Math.random() < 0.025) {
              this.entities.push(new Godzilla(this.width, this.height));
              this.itemsSpawnedThisLevel.godzilla++;
              this.playGodzillaRoar(false); 
+             return;
+        }
+
+        // Hydra (Level >= 6) ~ Independent
+        const hydraOnScreen = this.entities.some(e => e instanceof Hydra);
+        if (!hydraOnScreen && this.level >= 6 && this.itemsSpawnedThisLevel.hydra < 2 && Math.random() < 0.025) {
+             this.entities.push(new Hydra(this.width, this.height));
+             this.itemsSpawnedThisLevel.hydra++;
+             this.playGodzillaRoar(false); // Reuse roar for now
+             return;
+        }
+
+        // Pterodactyl (Level >= 7) Max 2
+        // Can coexist, so no exclusion check against others
+        if (this.level >= 7 && this.itemsSpawnedThisLevel.pterodactyl < 2 && Math.random() < 0.025) {
+             this.entities.push(new Pterodactyl(this.width, this.height));
+             this.itemsSpawnedThisLevel.pterodactyl++;
              return;
         }
 
@@ -399,6 +460,32 @@ export class Game {
                     }
                     return; 
                 }
+
+                if (entity instanceof Hydra) {
+                    entity.hp--;
+                    const hitPoints = Math.floor(Math.random() * 5) + 1;
+                    this.score += hitPoints;
+                    this.particles.push(new FloatingText(x, y, `+${hitPoints}`, 'lime'));
+                    if (entity.hp <= 0) {
+                        entity.markedForDeletion = true;
+                        this.score += entity.killPoints;
+                        this.particles.push(new FloatingText(x, y - 50, `KILLED! +${entity.killPoints}`, 'lime'));
+                    }
+                    return;
+                }
+
+                if (entity instanceof Pterodactyl) {
+                    entity.hp--;
+                    const hitPoints = Math.floor(Math.random() * 5) + 1;
+                    this.score += hitPoints;
+                    this.particles.push(new FloatingText(x, y, `+${hitPoints}`, 'lime'));
+                    if (entity.hp <= 0) {
+                        entity.markedForDeletion = true;
+                        this.score += entity.killPoints;
+                        this.particles.push(new FloatingText(x, y - 50, `KILLED! +${entity.killPoints}`, 'lime'));
+                    }
+                    return;
+                }
                 
                 // Bomb Hit 
                 if (entity instanceof Bomb) {
@@ -485,31 +572,35 @@ export class Game {
 
             const dist = Math.hypot(x - entity.x, y - entity.y);
             
-            // Godzilla Special Vulnerability
-            if (entity instanceof Godzilla) {
-                // Ensure center of entity is used? 
-                // Godzilla entity.x/y is usually bottom center or top left?
-                // In entities.js draw(): ctx.translate(this.x, this.y); ...
-                // Constructor: defaults. x/y are usually position.
-                // The draw logic centers horizontally in some cases, usually x,y is anchor.
-                // Godzilla draw: translate(this.x, this.y).
-                // So x,y is the anchor.
-                // Distance check is fine.
-                // Issue might be blast radius vs hit box.
+            // Godzilla / Hydra / Pterodactyl Logic (Shared Boss Damage)
+            if (entity instanceof Godzilla || entity instanceof Hydra || entity instanceof Pterodactyl) {
+                // Calculate distance to Bounding Box
+                // Default: Bottom-Center Anchor (Godzilla, Hydra)
+                let rx = entity.x - entity.width / 2;
+                let ry = entity.y - entity.height;
+                let rw = entity.width;
+                let rh = entity.height;
+
+                // Pterodactyl is Center Anchor
+                if (entity instanceof Pterodactyl) {
+                    ry = entity.y - entity.height / 2;
+                }
+
+                // Closest point on rectangle to click
+                const closeX = Math.max(rx, Math.min(x, rx + rw));
+                const closeY = Math.max(ry, Math.min(y, ry + rh));
                 
-                // Radius check
-                // Godzilla "radius" isn't explicitly defined in constructor might be missing.
-                // Let's assume a large hit circle.
-                const hitDist = 90; // Godzilla is big
-                if (dist < hitDist + blastRadius) {
-                    entity.hp -= 5; // MASSIVE DAMAGE (5x normal)
-                    this.particles.push(new FloatingText(entity.x, entity.y - 100, "-5 HP", "red"));
+                const distBox = Math.hypot(x - closeX, y - closeY);
+
+                if (distBox < blastRadius) {
+                    entity.hp -= 5;
+                    this.particles.push(new FloatingText(entity.x, entity.y - 50, "-5 HP", "red"));
                     somethingHit = true;
                     
                     if (entity.hp <= 0) {
                         entity.markedForDeletion = true;
                         this.score += entity.killPoints;
-                        this.particles.push(new FloatingText(entity.x, entity.y - 50, `KILLED! +${entity.killPoints}`, 'lime'));
+                        this.particles.push(new FloatingText(entity.x, entity.y - 100, `KILLED! +${entity.killPoints}`, 'lime'));
                     }
                 }
                 continue;
@@ -529,7 +620,7 @@ export class Game {
 
     handleLevelEnd() {
         this.isRunning = false;
-        const config = this.levelConfig[this.level] || this.levelConfig[5];
+        const config = this.getLevelConfig(this.level);
         
         // Calculate points gained THIS level only
         const pointsGained = this.score - this.scoreAtLevelStart;
@@ -807,6 +898,9 @@ export class Game {
         // Kill everything in radius
         // 3x Shotgun radius (120 * 3 = 360)
         const blastRadius = 360; 
+        // 5x Shotgun Power (5 * 5 = 25)
+        const damage = 25;
+        
         let killCount = 0;
         let pointsGained = 0;
         
@@ -819,18 +913,22 @@ export class Game {
             
             const dist = Math.hypot(e.x - bomb.x, e.y - bomb.y);
             if (dist < blastRadius) {
-                // If it's Godzilla, deal damage (x10 normal bullet = 10 damage)
-                if (e instanceof Godzilla) {
-                    e.hp -= 10;
-                    this.particles.push(new FloatingText(e.x, e.y - 100, "-10 HP", "red"));
+                // Bosses: Godzilla, Hydra, Pterodactyl
+                if (e instanceof Godzilla || e instanceof Hydra || e instanceof Pterodactyl) {
+                    e.hp -= damage;
+                    this.particles.push(new FloatingText(e.x, e.y - 100, `-${damage} HP`, "red"));
                     if (e.hp <= 0) {
                          e.markedForDeletion = true;
                          pointsGained += e.killPoints;
+                         killCount++;
+                         this.particles.push(new FloatingText(e.x, e.y - 50, "KILLED!", "lime"));
                     }
                 } else {
                     // Everything else dies (Living things: Animals, Birds, Balloons)
                     e.markedForDeletion = true;
-                    pointsGained += e.points;
+                    // Fix NaN: Ensure points defined
+                    const pts = e.points !== undefined ? e.points : 0;
+                    pointsGained += pts;
                     killCount++;
                 }
             }
