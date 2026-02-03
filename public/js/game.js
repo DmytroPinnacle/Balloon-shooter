@@ -1,10 +1,9 @@
 import { Balloon, Bird, FloatingText, Dragon, GoldenBalloon, GoldenClock, Mouse, Hedgehog, Gopher, AmmoDrop, BulletTrace, Godzilla, BirthdayCap, Bomb, MagazineDrop, ShotgunDrop } from './entities.js';
 
 export class Game {
-    constructor(canvas, socket, onUIUpdate, onLevelComplete, onGameOver) {
+    constructor(canvas, onUIUpdate, onLevelComplete, onGameOver) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
-        this.socket = socket;
         
         // Delegates / Actions (Callbacks in JS)
         this.onUIUpdate = onUIUpdate;
@@ -398,7 +397,6 @@ export class Game {
                         this.score += entity.killPoints;
                         this.particles.push(new FloatingText(x, y - 50, `KILLED! +${entity.killPoints}`, 'lime'));
                     }
-                    this.socket.emit('updateScore', { score: this.score, level: this.level });
                     return; 
                 }
                 
@@ -445,12 +443,6 @@ export class Game {
                 const sign = entity.points >= 0 ? '+' : '';
                 this.particles.push(new FloatingText(entity.x, entity.y, `${sign}${entity.points}`, color));
 
-                // Network Sync
-                this.socket.emit('updateScore', { 
-                    score: this.score, 
-                    level: this.level 
-                });
-                
                 return; // Only pop one per click
             }
         }
@@ -532,13 +524,6 @@ export class Game {
                 this.particles.push(new FloatingText(entity.x, entity.y, `${sign}${entity.points}`, color));
                 somethingHit = true;
             }
-        }
-
-        if (somethingHit) {
-            this.socket.emit('updateScore', { 
-                score: this.score, 
-                level: this.level 
-            });
         }
     }
 
@@ -857,8 +842,6 @@ export class Game {
              const color = pointsGained >= 0 ? "lime" : "red";
              const sign = pointsGained >= 0 ? "+" : "";
              this.particles.push(new FloatingText(bomb.x, bomb.y - 40, `${sign}${pointsGained}`, color));
-             
-             this.socket.emit('updateScore', { score: this.score, level: this.level });
         }
     }
     

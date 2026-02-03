@@ -6,11 +6,9 @@ const loginScreen = document.getElementById('login-screen');
 const gameUI = document.getElementById('game-ui');
 const messageScreen = document.getElementById('message-screen');
 
-// Initialize Socket.io
-const socket = io();
-
 let currentPlayerName = "";
 let game = null;
+let latestLeaderboard = [];
 
 // Adjust Canvas Size to Full Screen
 function resizeCanvas() {
@@ -20,65 +18,85 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// Global state to store latest leaderboard for calculations
-let latestLeaderboard = [];
+// API / Networking Handlers (Replaces Socket.io)
+
+async function fetchLeaderboard() {
+    try {
+        const res = await fetch('/api/leaderboard');
+        const data = await res.json();
+        latestLeaderboard = data;
+        updateLeaderboardUI(data);
+    } catch (err) {
+        console.error("Failed to fetch leaderboard", err);
+    }
+}
+
+async function submitScore(name, score) {
+    try {
+        await fetch('/api/score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, score })
+        });
+        // Refresh leaderboard after submission
+        fetchLeaderboard();
+    } catch (err) {
+        console.error("Failed to submit score", err);
+    }
+}
+
+// Initial Fetch
+fetchLeaderboard();
+setInterval(fetchLeaderboard, 10000); // Poll every 10 seconds
+
+function updateLeaderboardUI(leaderboard) {
+    const hudList = document.getElementById('leaderboard-list');
+    if (hudList) {
+        hudList.innerHTML = '';
+        // Display no more than 10 results
+        leaderboard.slice(0, 10).forEach(player => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span>${player.name}</span> <span>${player.score}</span>`;
+            hudList.appendChild(li);
+        });
+    }
+    
+    // Hide 'Online' counter or just set to 1 since we are single player connected
+    const onlineEl = document.getElementById('online-count');
+    if (onlineEl) onlineEl.style.display = 'none';
+}
 
 const calculatePercentile = (myScore) => {
     if (latestLeaderboard.length === 0) return 0;
     
-    // Sort just in case current local state is out of sync (though server sends sorted)
-    // Server seems to send sorted desc? Let's assume so or sort it here.
-    // Actually, we don't know other players' current live scores, only the "Top Players" list.
-    // If the list is all-time, we compare against that.
-    
-    // Count how many scores I beat
-    const lowerScores = latestLeaderboard.filter(p => p.score < myScore).length;
-    // But list might be truncated? If server sends full list, great. 
-    // Assuming server sends top X only? 
-    // Let's assume the leaderboard array sent to client is the "Top Players". 
-    // If I'm not in the top list, I can't really know exact percentile, 
-    // but we can fake it or estimate.
-    // Let's use the provided list.
-    
+    // Percentile logic
     const total = latestLeaderboard.length;
     if (total === 0) return 100;
     
-    // Percentile = (Number of people below me / Total) * 100
-    // If I am top 1, I am better than everyone else in the list (excluding myself)
     const below = latestLeaderboard.filter(p => p.score < myScore).length;
-    const p = Math.floor((below / total) * 100);
-    
-    // If the list is only top 10, and I have 50 points and top has 1000, 
-    // this logic is flawed because it ignores the hundreds of low scoring players not in the list.
-    // But given the constraints, let's just compare to the visible leaderboard.
-    return p;
+    return Math.floor((below / total) * 100);
 };
 
 const onUIUpdate = (data) => {
-    // Score Format: "Round Points / Round Target"
-    // Color Logic: Red if < Target, Green if >= Target
     const scoreElement = document.getElementById('score');
     scoreElement.innerText = `${data.roundScore} / ${data.target}`;
     
     if (data.roundScore >= data.target) {
-        scoreElement.style.color = '#2ecc71'; // Light Green
+        scoreElement.style.color = '#2ecc71'; 
     } else {
-        scoreElement.style.color = '#ff7675'; // Light Red
+        scoreElement.style.color = '#ff7675'; 
     }
 
     document.getElementById('level').innerText = data.level;
     document.getElementById('timer').innerText = data.time;
     
-    // Bottom Right Ammo Display
     document.getElementById('bullet-count').innerText = data.bullets;
     document.getElementById('shell-count').innerText = data.shells;
 
-    // Visual feedback for low time
     const timerElement = document.getElementById('timer');
     if (data.time <= 5) timerElement.style.color = 'red';
     else timerElement.style.color = 'white';
     
-    // Machine Gun Cursor
     if (data.machineGunActive) {
         canvas.classList.add('machine-gun-active');
     } else {
@@ -87,14 +105,17 @@ const onUIUpdate = (data) => {
 };
 
 const onLevelComplete = (score, level) => {
+    // Autosave on level complete
+    submitScore(currentPlayerName, score);
+
     const p = calculatePercentile(score);
     showMessage("Level Complete!", `Great Job! Score: ${score}\nYou're better than ${p}% of top players!`, true);
-    socket.emit('levelComplete', { score, level });
 };
 
 const onGameOver = (score) => {
     // Save final score
-    socket.emit('gameOver', { score });
+    submitScore(currentPlayerName, score);
+    
     const p = calculatePercentile(score);
     showMessage("Game Over", `Final Score: ${score}\nYou're better than ${p}% of top players!`, false);
 };
@@ -108,12 +129,11 @@ document.getElementById('start-btn').addEventListener('click', () => {
     }
     
     currentPlayerName = nameInput.value;
-    socket.emit('joinGame', currentPlayerName);
+    // No socket join needed
     
     loginScreen.classList.add('hidden');
     gameUI.classList.remove('hidden');
     
-    // Switch Leaderboard to Game Mode (translucent, top-right)
     document.getElementById('leaderboard-container').classList.remove('solid-mode');
     
     startGame(1);
@@ -121,12 +141,11 @@ document.getElementById('start-btn').addEventListener('click', () => {
 
 function startGame(level) {
     if (!game) {
-        game = new Game(canvas, socket, onUIUpdate, onLevelComplete, onGameOver);
+        // Constructor signature updated: No socket
+        game = new Game(canvas, onUIUpdate, onLevelComplete, onGameOver);
     }
     
-    // Set Background Class
     canvas.className = `level-${level}`;
-    
     game.startLevel(level);
 }
 
@@ -147,7 +166,6 @@ canvas.addEventListener('mousedown', (e) => {
         game.setMouseState(true, x, y);
         game.handleClick(x, y);
     } 
-    // Right click is handled via 'contextmenu' to prevent popup
 });
 
 canvas.addEventListener('mouseup', (e) => {
@@ -161,7 +179,6 @@ canvas.addEventListener('mouseup', (e) => {
 canvas.addEventListener('mousemove', (e) => {
     if (!game) return;
     const { x, y } = getMousePos(e);
-    // Check if left button is being held down
     const isDown = (e.buttons & 1) === 1;
     game.setMouseState(isDown, x, y);
 });
@@ -171,7 +188,7 @@ canvas.addEventListener('mouseleave', () => {
 });
 
 canvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault(); // Prevent standard menu
+    e.preventDefault(); 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -192,20 +209,14 @@ function showMessage(title, text, isWin) {
     const nextBtn = document.getElementById('next-level-btn');
     const exitBtn = document.getElementById('exit-btn');
     
-    // Always show exit button
     exitBtn.classList.remove('hidden');
     exitBtn.onclick = () => {
         messageScreen.classList.add('hidden');
         loginScreen.classList.remove('hidden');
         
-        // Disconnect or Reset state if needed
         currentPlayerName = "";
         game = null;
         
-        // Optional: reload page to force fresh state
-        // location.reload(); 
-        
-        // Reset Leaderboard to Initial Mode
         document.getElementById('leaderboard-container').classList.add('solid-mode');
     };
 
@@ -225,38 +236,14 @@ document.getElementById('restart-btn').addEventListener('click', () => {
     messageScreen.classList.add('hidden');
     gameUI.classList.remove('hidden');
     
-    // Retry Logic from User Request #4
     if (game) {
         game.retryLevel();
     } else {
-        // Fallback if game is null (shouldn't happen here normally)
-        game = new Game(canvas, socket, onUIUpdate, onLevelComplete, onGameOver);
+        game = new Game(canvas, onUIUpdate, onLevelComplete, onGameOver);
         startGame(1);
     }
 });
 
-// Socket Events (Multiplayer Updates)
-socket.on('updateLeaderboard', (leaderboard) => {
-    latestLeaderboard = leaderboard; // Store for percentile calc
-    
-    // Top Right HUD Leaderboard (Always present now)
-    const hudList = document.getElementById('leaderboard-list');
-    if (hudList) {
-        hudList.innerHTML = '';
-        // Display no more than 10 results/players (Requirement 1)
-        leaderboard.slice(0, 10).forEach(player => {
-            const li = document.createElement('li');
-            li.innerHTML = `<span>${player.name}</span> <span>${player.score}</span>`;
-            hudList.appendChild(li);
-        });
-    }
+// Reset Leaderboard initial state
+document.getElementById('leaderboard-container').classList.add('solid-mode');
 
-    // Initialize state if first load (check if we are on login screen)
-    if (!loginScreen.classList.contains('hidden')) {
-        document.getElementById('leaderboard-container').classList.add('solid-mode');
-    }
-});
-
-socket.on('playerCountUpdate', (count) => {
-    document.getElementById('online-count').innerText = `Online: ${count}`;
-});

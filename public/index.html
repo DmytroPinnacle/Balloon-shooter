@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Balloon Shooter Challenge</title>
+    
+    <!-- Open Graph Data for Previews -->
+    <meta property="og:title" content="Balloon Shooter Challenge" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="thumbnail.svg" />
+    <meta property="og:description" content="Shoot balloons, avoid birds, and defeat Godzilla in this epic arcade shooter!" />
+    
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -55,12 +62,12 @@
             <ul id="leaderboard-list">
                 <!-- Items populated via JS -->
             </ul>
-            <div id="online-count">Online: 0</div>
+            <div id="online-count" class="hidden">Online: -</div>
         </div>
     </div>
 
-    <!-- Socket.io Client Library -->
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- Socket.io Removed: Using Fetch API for Vercel compatibility -->
+    
     <!-- Main Game Script (Type Module allows 'import' syntax like C# 'using') -->
     <script type="module" src="js/main.js"></script>
 </body>
